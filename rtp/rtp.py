@@ -38,7 +38,7 @@ class RTP:
             ``0 <= x < 2**32``
         extension (:obj:`Extension`): A header extension. May be ``None``.
         csrcList (:obj:`CSRCList`): The CSRC list.
-        payload (bytearray): The RTP payload.
+        payload (bytes): The RTP payload.
 
     '''
 
@@ -53,7 +53,7 @@ class RTP:
        ssrc: int = None,
        extension: Optional[Extension] = None,
        csrcList: Iterable[int] = None,
-       payload: bytearray = None,
+       payload: bytes = None,
         length: int = 0,
         channel: int = 0) -> None:
         self.version = version
@@ -64,7 +64,7 @@ class RTP:
         self.ssrc = timestamp
         self.extension = extension
         self._csrcList = CSRCList()
-        self.payload = bytearray()
+        self.payload = bytes()
         self.length = length
         self.channel = channel
 
@@ -225,37 +225,35 @@ class RTP:
         return self._csrcList
 
     @property
-    def payload(self) -> bytearray:
+    def payload(self) -> bytes:
         return self._payload
 
     @payload.setter
-    def payload(self, p: bytearray) -> None:
-        if type(p) != bytearray:
-            raise AttributeError("Payload value must be bytearray")
+    def payload(self, p: bytes) -> None:
+        if type(p) != bytes:
+            raise AttributeError("Payload value must be bytes")
         else:
             self._payload = p
 
-    def fromBytearray(self, packet: bytearray) -> RTP:
+    def fromBytes(self, packet: bytes) -> RTP:
         '''
-        Populate instance from a bytearray.
+        Populate instance from a bytes.
         '''
 
         self.channel = int.from_bytes(packet[1:2], byteorder='big')
-        self.length = int.from_bytes(packet[2:4], byteorder='big')+4
+        self.length = int.from_bytes(packet[2:4], byteorder='big') + 4
 
-        # self.version = (packet[4] >> 6) & 3
-        self.version = (int.from_bytes(packet[4:5], byteorder='big') >> 6) & 3
-        # self.padding = ((packet[4] >> 5) & 1) == 1
-        self.padding = (int.from_bytes(packet[4:5], byteorder='big') & 1) == 1
-        # hasExtension = ((packet[4] >> 4) & 1) == 1
-        hasExtension = ((int.from_bytes(packet[4:5], byteorder='big') >> 4) & 1) == 1
-        # csrcListLen = packet[4] & 0x0f
-        csrcListLen = int.from_bytes(packet[4:5], byteorder='big') & 0x0f
+        self.version = (packet[4] >> 6) & 3
 
-        # self.marker = ((packet[5] >> 7) & 1) == 1
-        self.marker = ((int.from_bytes(packet[5:6], byteorder='big') >> 7) & 1) == 1
-        # self.payloadType = PayloadType(packet[5] & 0x7f)
-        self.payloadType = PayloadType(int.from_bytes(packet[5:6], byteorder='big') & 0x7f)
+        self.padding = ((packet[4] >> 5) & 1) == 1
+
+        hasExtension = ((packet[4] >> 4) & 1) == 1
+
+        csrcListLen = packet[4] & 0x0f
+
+        self.marker = ((packet[5] >> 7) & 1) == 1
+
+        self.payloadType = PayloadType(packet[5] & 0x7f)
 
         self.sequenceNumber = int.from_bytes(packet[6:8], byteorder='big')
 
@@ -282,65 +280,3 @@ class RTP:
         self.payload = packet[payloadStart:self.length]
 
         return self
-
-    def toBytearray(self) -> bytearray:
-        '''
-        Encode instance as a bytearray.
-        '''
-
-        packetLen = 12
-        packetLen += 4 * len(self.csrcList)
-
-        extensionStartIndex = packetLen
-        payloadStartIndex = extensionStartIndex
-
-        if self.extension is not None:
-            payloadStartIndex += len(bytes(self.extension))
-            packetLen = payloadStartIndex
-
-        packetLen += len(self.payload)
-
-        packet = bytearray(packetLen)
-
-        packet[0] = self.version << 6
-        packet[0] |= self.padding << 5
-        packet[0] |= (self.extension is not None) << 4
-        packet[0] |= len(self.csrcList)
-
-        packet[1] = self.marker << 7
-        packet[1] |= self.payloadType.value
-
-        packet[2:4] = self.sequenceNumber.to_bytes(2, byteorder='big')
-
-        packet[4:8] = self.timestamp.to_bytes(4, byteorder='big')
-
-        packet[8:12] = self.ssrc.to_bytes(4, byteorder='big')
-
-        for x in range(len(self.csrcList)):
-            startIndex = 12 + (4*x)
-            endIndex = 12 + 4 + (4*x)
-            packet[startIndex: endIndex] = self.csrcList[x].to_bytes(
-                4, byteorder='big')
-
-        if self.extension is not None:
-            packet[extensionStartIndex:payloadStartIndex] = bytes(
-                self.extension)
-
-        packet[payloadStartIndex:] = self.payload
-
-        return packet
-
-    def fromBytes(self, packet: bytes) -> RTP:
-        '''
-        Populate instance from bytes.
-        '''
-        return self.fromBytearray(bytearray(packet))
-
-    def toBytes(self) -> bytes:
-        '''
-        Encode instance as bytes.
-        '''
-        return bytes(self.toBytearray())
-
-    def __bytes__(self) -> bytes:
-        return self.toBytes()

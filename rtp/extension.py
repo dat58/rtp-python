@@ -21,19 +21,19 @@ class Extension:
     A data structure for storing RTP header extensions as defined by RFC 3550.
 
     Attributes:
-        startBits (bytearray): The initial 16bits of the header extension. Must
+        startBits (bytes): The initial 16bits of the header extension. Must
             be 2 bytes long.
-        headerExtension (bytearray): The main header extension bits. Must be a
+        headerExtension (bytes): The main header extension bits. Must be a
             multiple of 4 bytes long.
     '''
 
     def __init__(
        self,
-       startBits: bytearray = None,
-       headerExtension: bytearray = None) -> None:
+       startBits: bytes = None,
+       headerExtension: bytes = None) -> None:
 
-        self.startBits = bytearray(2)
-        self.headerExtension = bytearray()
+        self.startBits = bytes(2)
+        self.headerExtension = bytes()
 
         if startBits is not None:
             self.startBits = startBits
@@ -50,26 +50,26 @@ class Extension:
             (self.headerExtension == other.headerExtension))
 
     @property
-    def startBits(self) -> bytearray:
+    def startBits(self) -> bytes:
         return self._startBits
 
     @startBits.setter
-    def startBits(self, s: bytearray) -> None:
-        if type(s) != bytearray:
-            raise AttributeError("Extension startBits must be bytearray")
+    def startBits(self, s: bytes) -> None:
+        if type(s) != bytes:
+            raise AttributeError("Extension startBits must be bytes")
         elif len(s) != 2:
             raise LengthError("Extension startBits must be 2 bytes long")
         else:
             self._startBits = s
 
     @property
-    def headerExtension(self) -> bytearray:
+    def headerExtension(self) -> bytes:
         return self._headerExtension
 
     @headerExtension.setter
-    def headerExtension(self, s: bytearray) -> None:
-        if type(s) != bytearray:
-            raise AttributeError("Extension headerExtension must be bytearray")
+    def headerExtension(self, s: bytes) -> None:
+        if type(s) != bytes:
+            raise AttributeError("Extension headerExtension must be bytes")
         elif (len(s) % 4) != 0:
             raise LengthError(
                 "Extension headerExtension must be 32-bit aligned")
@@ -79,24 +79,24 @@ class Extension:
         else:
             self._headerExtension = s
 
-    def fromBytearray(self, inBytes: bytearray) -> Extension:
+    def fromBytearray(self, inBytes: bytes) -> Extension:
         '''
-        Populate instance from a bytearray.
+        Populate instance from a bytes.
         '''
 
         length = int.from_bytes(inBytes[2:4], byteorder='big')
         if ((len(inBytes)/4) - 1) != int(length):
             raise LengthError(
-                "Extension bytearray length doesn't match length field")
+                "Extension bytes length doesn't match length field")
 
         self.startBits = inBytes[0:2]
         self.headerExtension = inBytes[4:]
 
         return self
 
-    def toBytearray(self) -> bytearray:
+    def toBytearray(self) -> bytes:
         '''
-        Encode instance as a bytearray.
+        Encode instance as a bytes.
         '''
 
         heLen = len(self.headerExtension)
@@ -107,7 +107,7 @@ class Extension:
         # Add on bytes for startBits & length
         extLen = heLen + 4
 
-        bArray = bytearray(extLen)
+        bArray = bytes(extLen)
 
         bArray[0:2] = self.startBits
         bArray[2:4] = int(heLenWords).to_bytes(2, byteorder='big')
