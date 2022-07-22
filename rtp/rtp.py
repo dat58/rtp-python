@@ -53,7 +53,9 @@ class RTP:
        ssrc: int = None,
        extension: Optional[Extension] = None,
        csrcList: Iterable[int] = None,
-       payload: bytearray = None) -> None:
+       payload: bytearray = None,
+        length: int = 0,
+        channel: int = 0) -> None:
         self.version = version
         self.padding = padding
         self.marker = marker
@@ -63,6 +65,8 @@ class RTP:
         self.extension = extension
         self._csrcList = CSRCList()
         self.payload = bytearray()
+        self.length = length
+        self.channel = channel
 
         if sequenceNumber is None:
             self.sequenceNumber = randint(0, (2**16)-1)
@@ -94,7 +98,9 @@ class RTP:
             (self.ssrc == other.ssrc) and
             (self.extension == other.extension) and
             (self.csrcList == other.csrcList) and
-            (self.payload == other.payload))
+            (self.payload == other.payload) and
+            (self.length == other.length) and
+            (self.channel == other.channel))
 
     @property
     def version(self) -> int:
@@ -183,6 +189,28 @@ class RTP:
     def ssrc(self) -> int:
         return self._ssrc
 
+    @property
+    def length(self) -> int:
+        return self._length
+
+    @length.setter
+    def length(self, l: int) -> None:
+        if type(l) == int:
+            self._length = l
+        else:
+            raise AttributeError("Length value must be integer")
+
+    @property
+    def channel(self) -> int:
+        return self._channel
+
+    @channel.setter
+    def channel(self, c: int) -> None:
+        if type(c) == int:
+            self._channel = c
+        else:
+            raise AttributeError("Channel value must be integer")
+
     @ssrc.setter
     def ssrc(self, s: int) -> None:
         if type(s) != int:
@@ -212,27 +240,30 @@ class RTP:
         Populate instance from a bytearray.
         '''
 
-        self.version = (packet[0] >> 6) & 3
-        self.padding = ((packet[0] >> 5) & 1) == 1
-        hasExtension = ((packet[0] >> 4) & 1) == 1
-        csrcListLen = packet[0] & 0x0f
+        self.channel = int.from_bytes(packet[1:2], byteorder='big')
+        self.length = int.from_bytes(packet[2:4], byteorder='big')
 
-        self.marker = ((packet[1] >> 7) & 1) == 1
-        self.payloadType = PayloadType(packet[1] & 0x7f)
+        self.version = (packet[4] >> 6) & 3
+        self.padding = ((packet[4] >> 5) & 1) == 1
+        hasExtension = ((packet[4] >> 4) & 1) == 1
+        csrcListLen = packet[4] & 0x0f
 
-        self.sequenceNumber = int.from_bytes(packet[2:4], byteorder='big')
+        self.marker = ((packet[5] >> 7) & 1) == 1
+        self.payloadType = PayloadType(packet[5] & 0x7f)
 
-        self.timestamp = int.from_bytes(packet[4:8], byteorder='big')
+        self.sequenceNumber = int.from_bytes(packet[6:8], byteorder='big')
 
-        self.ssrc = int.from_bytes(packet[8:12], byteorder='big')
+        self.timestamp = int.from_bytes(packet[8:12], byteorder='big')
+
+        self.ssrc = int.from_bytes(packet[12:16], byteorder='big')
 
         for x in range(csrcListLen):
-            startIndex = 12 + (4*x)
-            endIndex = 12 + 4 + (4*x)
+            startIndex = 16 + (4*x)
+            endIndex = 16 + 4 + (4*x)
             self.csrcList.append(
                 int.from_bytes(packet[startIndex: endIndex], byteorder='big'))
 
-        extStart = 12 + (4*csrcListLen)
+        extStart = 16 + (4*csrcListLen)
         payloadStart = extStart
 
         if hasExtension:
@@ -242,7 +273,7 @@ class RTP:
             self.extension = Extension().fromBytearray(
                 packet[extStart:payloadStart])
 
-        self.payload = packet[payloadStart:]
+        self.payload = packet[payloadStart:payloadStart+self.length]
 
         return self
 
