@@ -241,7 +241,7 @@ class RTP:
         '''
 
         self.channel = int.from_bytes(packet[1:2], byteorder='big')
-        self.length = int.from_bytes(packet[2:4], byteorder='big')
+        self.length = int.from_bytes(packet[2:4], byteorder='big')+4
 
         self.version = (packet[4] >> 6) & 3
         self.padding = ((packet[4] >> 5) & 1) == 1
@@ -273,7 +273,7 @@ class RTP:
             self.extension = Extension().fromBytearray(
                 packet[extStart:payloadStart])
 
-        self.payload = packet[payloadStart:payloadStart+self.length+4]
+        self.payload = packet[payloadStart:payloadStart+self.length]
 
         return self
 
