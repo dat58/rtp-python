@@ -243,13 +243,19 @@ class RTP:
         self.channel = int.from_bytes(packet[1:2], byteorder='big')
         self.length = int.from_bytes(packet[2:4], byteorder='big')+4
 
-        self.version = (packet[4] >> 6) & 3
-        self.padding = ((packet[4] >> 5) & 1) == 1
-        hasExtension = ((packet[4] >> 4) & 1) == 1
-        csrcListLen = packet[4] & 0x0f
+        # self.version = (packet[4] >> 6) & 3
+        self.version = (int.from_bytes(packet[4:5], byteorder='big') >> 6) & 3
+        # self.padding = ((packet[4] >> 5) & 1) == 1
+        self.padding = (int.from_bytes(packet[4:5], byteorder='big') & 1) == 1
+        # hasExtension = ((packet[4] >> 4) & 1) == 1
+        hasExtension = ((int.from_bytes(packet[4:5], byteorder='big') >> 4) & 1) == 1
+        # csrcListLen = packet[4] & 0x0f
+        csrcListLen = int.from_bytes(packet[4:5], byteorder='big') & 0x0f
 
-        self.marker = ((packet[5] >> 7) & 1) == 1
-        self.payloadType = PayloadType(packet[5] & 0x7f)
+        # self.marker = ((packet[5] >> 7) & 1) == 1
+        self.marker = ((int.from_bytes(packet[5:6], byteorder='big') >> 7) & 1) == 1
+        # self.payloadType = PayloadType(packet[5] & 0x7f)
+        self.payloadType = PayloadType(int.from_bytes(packet[5:6], byteorder='big') & 0x7f)
 
         self.sequenceNumber = int.from_bytes(packet[6:8], byteorder='big')
 
@@ -273,7 +279,7 @@ class RTP:
             self.extension = Extension().fromBytearray(
                 packet[extStart:payloadStart])
 
-        self.payload = packet[payloadStart:payloadStart+self.length]
+        self.payload = packet[payloadStart:self.length]
 
         return self
 
