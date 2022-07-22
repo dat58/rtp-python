@@ -273,7 +273,7 @@ class RTP:
             self.extension = Extension().fromBytearray(
                 packet[extStart:payloadStart])
 
-        self.payload = packet[payloadStart:payloadStart+self.length]
+        self.payload = packet[payloadStart:payloadStart+self.length+4]
 
         return self
 
